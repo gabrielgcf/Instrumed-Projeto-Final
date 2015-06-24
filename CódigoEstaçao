@@ -1,0 +1,205 @@
+///Projeto Final - INSTRU-MED - PROJETO FINAL
+///ESTAÇAO METEREOLOGICA
+///Gabriel França, Artur Rizzo, Vitor Vital
+/// 22 de Junho de 2015
+
+/// Sensores Utilizados: LM35 , DHT11, BMP180, DQ2
+/// LCD 16x2
+/// Arduino UNO
+
+#include <Wire.h>
+#include <LiquidCrystal.h> //Inclui a biblioteca do LCD
+#include <dht.h>
+#include <math.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2); //Configura os pinos do Arduino para se comunicar com o LCD
+
+
+int sensorPin = A3;    // o pino de entrada ao potenciômetro
+int valorpot = 0;
+
+
+
+#include "DHT.h"
+#define DHTPIN A3 //O Pino onde o DHT vai estar conectado
+#define DHTTYPE DHT11 // define qual a versao do DHT ira ser usada, no nosso caso o DHT11
+#include <SFE_BMP180.h>
+#include <Wire.h>
+DHT dht(DHTPIN,DHTTYPE);
+int val;
+int tempPin = A0; // Pino onde estera conectaado o LM35
+float temp;
+float tempREAL;
+SFE_BMP180 pressure; // inicia o BMP180
+#define ALTITUDE 750.0 //Insira aqui a altitude do local onde sera feito a mediçao. Pegamos, em nosso caso, a altitude média em relaçao ao mar de Sao Paulo
+float umidadeREAL;
+
+float variavel;
+
+
+
+void setup()  //parte do codigo de rodara apenas uma vez, quando iniciado.
+  {
+  Serial.begin(9600); // Define a velocidade de troca de bytes por segundo com o computador
+  lcd.begin(16,2); //inicia o display lcd, com 16 colunas e 2 linhas
+  lcd.clear(); //Limpa a tela do display. Aconselhavel a fazer isso sempre que decidir imprimir exibir outros caracteres na tela
+  lcd.setCursor(0, 0); //Posiciona o cursor na primeira coluna(0) e na primeira linha(0) do LCD
+  Serial.print("Hello World"); //teste1 
+  
+ 
+
+  
+  if (pressure.begin())//testa se o BMP180 se conectou corretamente
+    Serial.println("BMP180 init success");
+  else
+  {
+    
+    Serial.println("BMP180 init fail\n\n");
+    while(1); // Pausa o sensor.
+  }
+
+   lcd.print("Estacao");
+   lcd.setCursor(0, 1);
+   lcd.println("Meteorologica    ");
+   delay(3600);
+   lcd.clear();
+
+  }
+
+void loop(){ //Parte do código que rodara constantemente
+  
+  //SENSOR DE QUALIDADE DO AR DQ 2
+  
+  float sensor_volt; 
+  float RS_air; //  Pega o valor de RS no estado de ar limpo
+  float R0;  // Pega o valor de R0 atraves do H2
+  float sensorValue;
+ 
+//----pega a media dos dados de 100 mediçoes----//
+    for(int x = 0 ; x < 100 ; x++)// simple loop 
+  {
+    sensorValue = sensorValue + analogRead(A1); // A PORTA ONDE O SENSOR DQ2 ESTA CONECTADO
+  }
+  sensorValue = sensorValue/100.0;
+/*-----------------------------------------------*/
+ 
+  sensor_volt = sensorValue/1024*5.0;
+  RS_air = (5.0-sensor_volt)/sensor_volt; 
+  R0 = RS_air/10.0; //se o ar estiver limpo, imprime 10
+  lcd.clear();
+  //lcd.setCursor(0, 0);
+  //lcd.print("sensor_volt = ");
+  //lcd.print(" ");
+  //lcd.setCursor(7, 0);
+  //lcd.print(sensor_volt,1);
+  //lcd.print("V");
+  
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Qualidade do Ar:");
+  lcd.setCursor(0, 1);
+  lcd.print("R0 = ");
+  lcd.setCursor(5, 1);
+  lcd.print(R0, 1);
+  
+  delay(5000); //tempo para executar proximo passo. nesse caso 5000 equivale a 5 segundos
+  
+ 
+
+//SENSOR DE UMIDADE
+  float h = dht.readHumidity(); //Le o valor da umidade
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Umidade Relativa : ");
+  lcd.setCursor(0, 1);
+  h = (h/100)*1.024 + 0,6365; //corrige o valor do sensor para aquele tratado no relatorio ou seja, o calibrado
+  lcd.print(h, 1);
+  lcd.setCursor(5, 1);
+  lcd.print("%");
+  lcd.setCursor(6,1);
+  lcd.print("      ");
+  // sequencias de condiçoes para determinar onde a umidade  medida se encaixa nas recomendaçoes da OMS ( Organizaçao Mundial de Saúde)
+  if (h >= 60){
+   lcd.print("Adeq");
+  }
+  if (30 <h < 60){
+   lcd.print("Ined");
+  }
+  if (21<h<29){
+    lcd.print("Aten");
+  }
+  if (12<h<20){
+    lcd.print("Alerta");
+  }
+  if (12>h){
+    lcd.print("Emerg");
+  }
+    
+   
+  //Intervalo para leitura do sensor
+  delay(5000);
+  
+  char status;
+  double T,P,p0,a;
+  status = pressure.startPressure(3);
+  if (status != 0)
+  {
+    // Espera a mediçao ser concluida
+    Serial.print("teste"); //teste2
+    delay(status);
+  
+
+  
+    status = pressure.getPressure(P,T); //note que essa funçao necessita dois paramentros: T e P, ou seja, a mediçao da temperatura e a variavel que guardara o valor medido.
+    if (status != 0)
+    {
+     
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      
+      //Serial.print("FUNCIONA"); //teste para saber se esta entrando dentro da condiçao
+      
+      
+      lcd.print("Pressao Absoluta:");
+      
+      lcd.setCursor(0, 1);
+      
+      //lcd.print(P*33.86389*0.0295333727,2); //converte de inHg para hPa
+      //lcd.setCursor(7,1);
+      //lcd.print("hPa");
+      lcd.print(P*25.399*0.0295333727,2);
+      lcd.setCursor(7,1);
+      lcd.print("mmHg");
+     
+      delay(5000);
+      
+      lcd.clear();
+      p0 = pressure.sealevel(P,ALTITUDE); // pressao relativa a nivel do mar ( o que a previsao do tempo mostra)
+      lcd.setCursor(0,0);
+      lcd.print("pressao relativa ");
+      lcd.setCursor(0,1);
+      lcd.print(p0*0.0295333727*25.39,2); //converte de mb para mmHg
+      lcd.setCursor(7,1);
+      lcd.println(" mmHg");      
+      delay(5000);
+    }
+   }
+   
+   
+  //sensor de temperatura
+  temp = analogRead(tempPin);
+  temp = temp * 0.48828125;
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Temperatura: ");
+  tempREAL = temp + 0.15;  //valor ja calibrado
+  lcd.setCursor(0, 1);
+  //Serial.print(temp);
+  lcd.print(tempREAL); //com a mediçao ja tratada
+  lcd.setCursor(6,1);
+  //lcd.print("(+-0,5)");
+  ///lcd.setCursor(13,1);
+  lcd.print(" oC");
+  //Serial.print(tempREAL);
+  delay(5000);
+}
